@@ -1,20 +1,23 @@
 # Use the official n8n image
 FROM n8nio/n8n:latest
 
-# Vercel provides the PORT environment variable dynamically.
-# n8n uses N8N_PORT to configure its listening port.
-ENV N8N_PORT=$PORT
+USER root
 
-# Disable telemetry and enforce Postgres for persistence 
-# (Vercel container functions are stateless between invocations)
+# Install graceful-fs globally to provide resilient file handle queueing under strict microVM ulimits
+RUN npm install -g graceful-fs
+
+# Disable telemetry and enforce permission tolerance
 ENV N8N_DIAGNOSTICS_ENABLED=false
-ENV DB_TYPE=postgresdb
-# These will be provided by Vercel Environment Variables:
-# ENV DB_POSTGRESDB_DATABASE=...
-# ENV DB_POSTGRESDB_HOST=...
-# ENV DB_POSTGRESDB_PORT=...
-# ENV DB_POSTGRESDB_USER=...
-# ENV DB_POSTGRESDB_PASSWORD=...
+ENV N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false
 
-# Vercel functions require a start command that binds to the port
-CMD ["n8n", "start"]
+# Copy custom entrypoint and fs patch to bridge Vercel container lifecycle and n8n CLI
+COPY patch-fs.js /entrypoint-fs-patch.js
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Healthcheck for orchestration
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:${N8N_PORT:-5678}/healthz || exit 1
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["start"]
