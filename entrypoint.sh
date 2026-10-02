@@ -16,8 +16,8 @@ elif [ -z "$N8N_PORT" ] || ! [ "$N8N_PORT" -eq "$N8N_PORT" ] 2>/dev/null; then
   export N8N_PORT=5678
 fi
 
-# Automatically enable Postgres when credentials or flag are supplied
-if [ "$USE_POSTGRES" = "true" ] || [ -n "$DB_POSTGRESDB_HOST" ]; then
+# Enable Postgres only when USE_POSTGRES is explicitly true
+if [ "$USE_POSTGRES" = "true" ]; then
   export DB_TYPE=postgresdb
 else
   export DB_TYPE=sqlite
