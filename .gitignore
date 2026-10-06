@@ -1,3 +1,41 @@
+# Vercel
 .vercel
-.env*
+
+# Environment files
+.env
+.env.local
+.env.*.local
+.env.production
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+
+# IDE and editor files
+.idea
+.vscode
+*.sublime-workspace
+*.sublime-project
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Node.js
 node_modules
+
+# Docker
+.docker/
+
+# Build and distribution
+dist/
+build/
+
+# Local development databases
+*.sqlite
+*.db
+
+# Local development files
+.docker-compose.override.yml
+.env.override

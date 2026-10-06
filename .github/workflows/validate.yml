@@ -1,0 +1,53 @@
+name: Validate Project
+
+# Lightweight validation workflow that runs on every push and PR
+# ===========================================================
+
+on:
+  push:
+    branches: [ master, main, Timothy191/palolo ]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - 'LICENSE'
+  pull_request:
+    branches: [ master, main ]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - 'LICENSE'
+
+jobs:
+  validate:
+    name: Quick Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Run validation script
+        run: |
+          echo "🔍 Running quick validation..."
+          chmod +x scripts/validate.sh
+          ./scripts/validate.sh
+
+      - name: Validate Dockerfile
+        run: |
+          echo "🐳 Validating Dockerfile..."
+          docker build -t n8n-vercel:validate . 2>/dev/null
+
+      - name: Check shell scripts
+        run: |
+          echo "📝 Checking shell scripts..."
+          bash -n entrypoint.sh
+          bash -n scripts/validate.sh
+
+      - name: Validate JSON files
+        run: |
+          echo "⚙️ Validating JSON files..."
+          jq empty vercel.json
+          jq empty .github/workflows/*.yml 2>/dev/null || true

@@ -1,0 +1,358 @@
+name: CI/CD Pipeline
+
+# n8n-vercel CI/CD Pipeline
+# ========================
+# Automated testing, validation, and deployment for n8n on Vercel
+
+on:
+  push:
+    branches: [ master, main, Timothy191/palolo ]
+  pull_request:
+    branches: [ master, main ]
+
+# Environment variables available to all jobs and steps
+env:
+  DOCKER_IMAGE: n8n-vercel
+  NODE_VERSION: 18
+
+jobs:
+  # Validation Job - Runs on all pushes and PRs
+  validate:
+    name: Validate Project
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Get full history for proper tagging
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Validate project structure
+        id: validation
+        run: |
+          echo "🔍 Running project validation..."
+          
+          # Check required files
+          echo "📁 Checking required files..."
+          required_files=("Dockerfile" "entrypoint.sh" "patch-fs.js" "vercel.json" "README.md" ".gitignore" "Makefile" "docker-compose.yml" ".env.example")
+          for file in "${required_files[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "❌ Missing required file: $file"
+              exit 1
+            fi
+            echo "✅ Found: $file"
+          done
+          
+          # Check file permissions
+          echo "🔒 Checking file permissions..."
+          if [ ! -x "entrypoint.sh" ]; then
+            echo "❌ entrypoint.sh is not executable"
+            exit 1
+          fi
+          echo "✅ entrypoint.sh is executable"
+          
+          # Validate Dockerfile syntax
+          echo "🐳 Validating Dockerfile syntax..."
+          if ! docker build -t ${DOCKER_IMAGE}-validate . 2>/dev/null; then
+            echo "❌ Dockerfile has syntax errors"
+            exit 1
+          fi
+          echo "✅ Dockerfile syntax is valid"
+
+      - name: Check shell script syntax
+        run: |
+          echo "📝 Checking shell script syntax..."
+          scripts=("entrypoint.sh" "scripts/validate.sh")
+          for script in "${scripts[@]}"; do
+            if [ -f "$script" ]; then
+              if ! bash -n "$script"; then
+                echo "❌ Syntax error in $script"
+                exit 1
+              fi
+              echo "✅ $script syntax is valid"
+            fi
+          done
+
+      - name: Validate vercel.json
+        run: |
+          echo "⚙️ Validating vercel.json..."
+          if ! jq empty vercel.json; then
+            echo "❌ vercel.json is not valid JSON"
+            exit 1
+          fi
+          
+          # Check required fields
+          if ! jq -e '.framework' vercel.json >/dev/null; then
+            echo "❌ vercel.json missing framework field"
+            exit 1
+          fi
+          
+          if ! jq -e '.buildCommand' vercel.json >/dev/null; then
+            echo "❌ vercel.json missing buildCommand field"
+            exit 1
+          fi
+          
+          echo "✅ vercel.json is valid"
+
+      - name: Validate .env.example
+        run: |
+          echo "🌍 Validating .env.example..."
+          if [ ! -f ".env.example" ]; then
+            echo "❌ .env.example not found"
+            exit 1
+          fi
+          
+          # Check for key variables
+          key_vars=("N8N_PORT" "WEBHOOK_URL" "USE_POSTGRES" "DB_POSTGRESDB_HOST" "DB_POSTGRESDB_DATABASE" "DB_POSTGRESDB_USER" "DB_POSTGRESDB_PASSWORD")
+          for var in "${key_vars[@]}"; do
+            if ! grep -q "^$var=" .env.example; then
+              echo "❌ Missing $var in .env.example"
+              exit 1
+            fi
+            echo "✅ Found $var in .env.example"
+          done
+
+      - name: Upload validation artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: validation-logs
+          path: |
+            *.log
+            docker build logs
+
+  # Test Job - Runs on pushes and PRs
+  test:
+    name: Test Container
+    needs: validate
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build Docker image
+        id: build
+        run: |
+          echo "🐳 Building Docker image..."
+          docker build -t ${DOCKER_IMAGE}-test .
+          echo "✅ Docker image built successfully"
+
+      - name: Test container startup
+        id: startup-test
+        run: |
+          echo "🧪 Testing container startup..."
+          
+          # Run container in background
+          docker run -d --name test-n8n \
+            -p 3000:3000 \
+            -e N8N_PORT=3000 \
+            -e WEBHOOK_URL=http://localhost:3000 \
+            -e USE_POSTGRES=false \
+            -e N8N_DIAGNOSTICS_ENABLED=false \
+            -e N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false \
+            ${DOCKER_IMAGE}-test
+          
+          # Wait for container to start (up to 60 seconds)
+          echo "⏳ Waiting for container to start..."
+          for i in {1..12}; do
+            if curl -s http://localhost:3000/healthz >/dev/null; then
+              echo "✅ Container started and health check passed"
+              exit 0
+            fi
+            sleep 5
+          done
+          
+          # If we get here, container didn't start in time
+          echo "❌ Container did not start within 60 seconds"
+          docker logs test-n8n
+          exit 1
+
+      - name: Test health endpoint
+        run: |
+          echo "🏥 Testing health endpoint..."
+          if curl -f http://localhost:3000/healthz; then
+            echo "✅ Health endpoint is responding"
+          else
+            echo "❌ Health endpoint failed"
+            exit 1
+          fi
+
+      - name: Clean up test container
+        if: always()
+        run: |
+          echo "🧹 Cleaning up test container..."
+          docker stop test-n8n 2>/dev/null || true
+          docker rm test-n8n 2>/dev/null || true
+          docker rmi ${DOCKER_IMAGE}-test 2>/dev/null || true
+
+  # Docker Compose Test - Tests multi-container setup
+  docker-compose-test:
+    name: Docker Compose Test
+    needs: validate
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build Docker images
+        run: |
+          echo "🐳 Building with docker-compose..."
+          docker compose build
+
+      - name: Test docker-compose up
+        run: |
+          echo "🧪 Testing docker-compose up..."
+          
+          # Start containers
+          docker compose up -d
+          
+          # Wait for n8n to start
+          echo "⏳ Waiting for n8n to start..."
+          for i in {1..12}; do
+            if curl -s http://localhost:3000/healthz >/dev/null; then
+              echo "✅ n8n started successfully with docker-compose"
+              exit 0
+            fi
+            sleep 5
+          done
+          
+          echo "❌ n8n did not start with docker-compose"
+          docker compose logs
+          exit 1
+
+      - name: Test with Postgres profile
+        run: |
+          echo "🐘 Testing with Postgres profile..."
+          
+          # Stop existing containers
+          docker compose down
+          
+          # Start with Postgres
+          docker compose --profile postgres up -d
+          
+          # Wait for both services to be ready
+          echo "⏳ Waiting for services to start..."
+          for i in {1..15}; do
+            if curl -s http://localhost:3000/healthz >/dev/null; then
+              echo "✅ n8n with Postgres started successfully"
+              exit 0
+            fi
+            sleep 4
+          done
+          
+          echo "❌ n8n with Postgres did not start"
+          docker compose logs
+          exit 1
+
+      - name: Clean up docker-compose
+        if: always()
+        run: |
+          echo "🧹 Cleaning up docker-compose..."
+          docker compose down -v
+
+  # Security Scan Job
+  security-scan:
+    name: Security Scan
+    needs: validate
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Trivy for container scanning
+        uses: aquasecurity/trivy-action@v0.19.0
+        with:
+          trivy-version: '0.48.0'
+
+      - name: Build Docker image for scanning
+        run: |
+          docker build -t ${DOCKER_IMAGE}-scan .
+
+      - name: Run Trivy vulnerability scan
+        id: trivy-scan
+        run: |
+          echo "🔒 Running container vulnerability scan..."
+          trivy image --exit-code 1 --severity CRITICAL,HIGH ${DOCKER_IMAGE}-scan
+
+      - name: Upload scan results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: trivy-scan-results
+          path: trivy-results.txt
+
+  # Deployment Job - Only on main branch
+  deploy:
+    name: Deploy to Vercel
+    needs: [validate, test, docker-compose-test, security-scan]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Vercel CLI
+        run: |
+          echo "📥 Installing Vercel CLI..."
+          npm install -g vercel@latest
+
+      - name: Pull Vercel project configuration
+        run: |
+          echo "📥 Pulling Vercel project..."
+          vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy to Vercel
+        id: deploy
+        run: |
+          echo "🚀 Deploying to Vercel..."
+          vercel --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Get deployment URL
+        id: deployment-url
+        run: |
+          # Extract deployment URL from Vercel output
+          if [ -f .vercel/output.json ]; then
+            DEPLOYMENT_URL=$(jq -r '.deployments[0].url' .vercel/output.json)
+          else
+            DEPLOYMENT_URL=$(vercel inspect --token=${{ secrets.VERCEL_TOKEN }} | grep "Deployment" | awk '{print $2}')
+          fi
+          echo "DEPLOYMENT_URL=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
+          echo "🎉 Deployment successful: $DEPLOYMENT_URL"
+
+      - name: Output deployment information
+        run: |
+          echo "📋 Deployment Summary:"
+          echo "  Repository: ${{ github.repository }}"
+          echo "  Commit: ${{ github.sha }}"
+          echo "  Branch: ${{ github.ref_name }}"
+          echo "  URL: ${{ steps.deployment-url.outputs.DEPLOYMENT_URL }}"
+
+  # Cleanup Job - Always runs
+  cleanup:
+    name: Cleanup Resources
+    needs: [test, docker-compose-test, security-scan, deploy]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Clean up Docker resources
+        run: |
+          echo "🧹 Cleaning up Docker resources..."
+          docker system prune -f 2>/dev/null || true
+          echo "✅ Docker cleanup complete"
