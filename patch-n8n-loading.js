@@ -12,16 +12,29 @@ const LOADING_HTML = `<!DOCTYPE html>
   <title>n8n is starting up...</title>
   <style>
     :root {
-      --color-bg-primary: #0e0918;
-      --color-bg-card: #1a1a1a;
-      --color-border: rgba(255, 255, 255, 0.1);
-      --color-border-glow: rgba(255, 142, 93, 0.3);
-      --color-text-primary: #ffffff;
-      --color-text-secondary: #b6b5b9;
-      --color-text-tertiary: #9ca3af;
-      --color-accent: #ff9b26;
-      --color-accent-secondary: #ff5873;
-      --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      /* n8n Official Design System Variables */
+      --color--primary: #ff9b26;
+      --color--primary-light: #ffb552;
+      --color--secondary: #ff5873;
+      --color--background: #0e0918;
+      --color--background-light-3: #1a1a1a;
+      --color--text: #ffffff;
+      --color--text-shade-1: #b6b5b9;
+      --color--text-tint-1: #9ca3af;
+      --color--foreground: rgba(255, 255, 255, 0.1);
+      --color--foreground-tint-2: rgba(255, 142, 93, 0.3);
+      
+      /* Backward compatibility aliases */
+      --color-bg-primary: var(--color--background);
+      --color-bg-card: var(--color--background-light-3);
+      --color-border: var(--color--foreground);
+      --color-border-glow: var(--color--foreground-tint-2);
+      --color-text-primary: var(--color--text);
+      --color-text-secondary: var(--color--text-shade-1);
+      --color-text-tertiary: var(--color--text-tint-1);
+      --color-accent: var(--color--primary);
+      --color-accent-secondary: var(--color--secondary);
+      --font-family: ui-sans-serif, system-ui, sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto;
       --letter-spacing: -0.02em;
     }
     
@@ -29,8 +42,8 @@ const LOADING_HTML = `<!DOCTYPE html>
     
     body {
       font-family: var(--font-family);
-      background: var(--color-bg-primary);
-      color: var(--color-text-primary);
+      background: var(--color--background);
+      color: var(--color--text);
       min-height: 100vh;
       display: flex;
       align-items: center;
@@ -44,12 +57,16 @@ const LOADING_HTML = `<!DOCTYPE html>
     .loading-container { text-align: center; padding: 1rem; max-width: 420px; width: 90%; }
     
     .loading-card {
-      background: var(--color-bg-card);
+      background: var(--color--background-light-3);
       border-radius: 1rem;
       padding: 2.5rem;
-      border: 1px solid var(--color-border);
-      box-shadow: 0 0 0 1px var(--color-border) inset, 0 1px 0 0 var(--color-border-glow) inset;
-      background-image: radial-gradient(55% 100% at 55% 2%, rgba(168, 92, 92, 0.25), rgba(103, 69, 69, 0.08)), linear-gradient(to bottom, transparent, rgba(14, 9, 24, 0.36));
+      border: 1px solid var(--color--foreground);
+      box-shadow: 
+        0 0 0 1px var(--color--foreground) inset,
+        0 1px 0 0 var(--color--foreground-tint-2) inset;
+      background-image: 
+        radial-gradient(55% 100% at 55% 2%, rgba(168, 92, 92, 0.25), rgba(103, 69, 69, 0.08)),
+        linear-gradient(to bottom, transparent, rgba(14, 9, 24, 0.36));
       animation: fadeIn 0.6s ease-out 0.1s both;
       position: relative;
       overflow: hidden;
@@ -57,13 +74,15 @@ const LOADING_HTML = `<!DOCTYPE html>
     
     .loading-card::before {
       content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-      background: radial-gradient(circle at 30% 0%, rgba(253, 152, 37, 0.1) 0%, transparent 50%), radial-gradient(circle at 70% 100%, rgba(251, 151, 51, 0.1) 0%, transparent 50%);
+      background: 
+        radial-gradient(circle at 30% 0%, rgba(253, 152, 37, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 70% 100%, rgba(251, 151, 51, 0.1) 0%, transparent 50%);
       opacity: 0.5; pointer-events: none;
     }
     
     .n8n-logo {
       width: 48px; height: 48px; margin: 0 auto 1.5rem;
-      background: linear-gradient(135deg, var(--color-accent), var(--color-accent-secondary));
+      background: linear-gradient(135deg, var(--color--primary), var(--color--secondary));
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
       background-clip: text;
       font-size: 2.5rem; font-weight: 700; letter-spacing: -0.05em;
@@ -72,8 +91,8 @@ const LOADING_HTML = `<!DOCTYPE html>
     
     .loading-spinner {
       width: 44px; height: 44px;
-      border: 3px solid var(--color-border);
-      border-top: 3px solid var(--color-accent);
+      border: 3px solid var(--color--foreground);
+      border-top: 3px solid var(--color--primary);
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
       margin: 0 auto 1.25rem; position: relative;
@@ -81,28 +100,30 @@ const LOADING_HTML = `<!DOCTYPE html>
     
     .loading-spinner::before {
       content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      width: 8px; height: 8px; background: var(--color-accent); border-radius: 50%;
-      box-shadow: 0 0 0 2px var(--color-bg-card);
+      width: 8px; height: 8px; background: var(--color--primary); border-radius: 50%;
+      box-shadow: 0 0 0 2px var(--color--background-light-3);
     }
     
     @keyframes spin {
-      0% { transform: rotate(0deg); border-top-color: var(--color-accent); }
-      50% { border-top-color: var(--color-accent-secondary); }
-      100% { transform: rotate(360deg); border-top-color: var(--color-accent); }
+      0% { transform: rotate(0deg); border-top-color: var(--color--primary); }
+      25% { border-top-color: var(--color--secondary); }
+      50% { border-top-color: var(--color--primary); }
+      75% { border-top-color: var(--color--secondary); }
+      100% { transform: rotate(360deg); border-top-color: var(--color--primary); }
     }
     
     .loading-title {
-      margin: 0 0 0.5rem; font-size: 1.25rem; color: var(--color-text-primary);
+      margin: 0 0 0.5rem; font-size: 1.25rem; color: var(--color--text);
       font-weight: 600; letter-spacing: var(--letter-spacing); animation: fadeIn 0.8s ease-out 0.3s both;
     }
     
     .loading-description {
-      margin: 0; color: var(--color-text-secondary); font-size: 0.875rem; line-height: 1.5;
+      margin: 0; color: var(--color--text-shade-1); font-size: 0.875rem; line-height: 1.5;
       animation: fadeIn 0.8s ease-out 0.4s both;
     }
     
     .loading-subtitle {
-      color: var(--color-text-tertiary); font-size: 0.75rem; margin-top: 0.5rem;
+      color: var(--color--text-tint-1); font-size: 0.75rem; margin-top: 0.5rem;
       animation: fadeIn 0.8s ease-out 0.5s both;
     }
     
