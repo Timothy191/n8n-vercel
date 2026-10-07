@@ -1,6 +1,5 @@
 # Use the official n8n image - pinned to specific version for stability
-# Note: Using :latest for best compatibility with current n8n versions
-FROM n8nio/n8n:latest
+FROM n8nio/n8n:2.43.0
 
 # Capture the actual version used for this build
 RUN echo "Building with n8n version: $(n8n --version 2>/dev/null || echo 'unknown')" && \

@@ -1,0 +1,11 @@
+# n8n-vercel deployment ignore rules
+test-cloning-results/
+*.log
+docker-compose.yml
+.git/
+.github/
+.mimocode/
+.env.example
+.env.preview
+CONTRIBUTING.md
+UI-UX-GUIDE.md

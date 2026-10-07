@@ -170,10 +170,14 @@ function patchAbstractServer() {
         let content = fs.readFileSync(filePath, 'utf8');
         
         if (content.includes(TARGET_STRING)) {
-          // Create the replacement string with the HTML properly formatted
-          const replacement = `res.type('html').send('${LOADING_HTML.replace(/'/g, "\\'")}')`;
+          // JSON.stringify yields a valid JS string literal (escapes newlines,
+          // quotes and backslashes). Raw multi-line HTML inside '...' is a
+          // SyntaxError that crashes n8n on boot.
+          const replacement = `res.type('html').send(${JSON.stringify(LOADING_HTML)});`;
           
-          content = content.replace(TARGET_STRING, replacement);
+          // Function replacer: prevents `$&`/`$1` patterns in the HTML from
+          // being interpreted by String.prototype.replace.
+          content = content.replace(TARGET_STRING, () => replacement);
           fs.writeFileSync(filePath, content);
           console.log('[build] abstract-server.js patched successfully with n8n official design');
           patched = true;

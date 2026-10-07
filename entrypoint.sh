@@ -15,7 +15,7 @@ error_exit() {
 # Validate required environment variables
 validate_env() {
   local var_name="$1"
-  local var_value="${!var_name}"
+  local var_value="$2"
   if [ -z "$var_value" ]; then
     error_exit "Required environment variable $var_name is not set"
   fi
