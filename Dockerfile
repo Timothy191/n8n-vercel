@@ -1,4 +1,6 @@
 # Use the official n8n image - pinned to specific version for stability
+# TODO: Periodically check for newer versions at https://hub.docker.com/r/n8nio/n8n/tags
+# Current: 2.43.0 (March 2024)
 FROM n8nio/n8n:2.43.0
 
 # Capture the actual version used for this build
@@ -8,7 +10,7 @@ RUN echo "Building with n8n version: $(n8n --version 2>/dev/null || echo 'unknow
 USER root
 
 # Security: Create non-root user for improved container security
-RUN groupadd -r n8nuser && useradd -r -g n8nuser n8nuser
+RUN addgroup -S n8nuser && adduser -S -G n8nuser n8nuser
 
 # Install graceful-fs globally to provide resilient file handle queueing under strict microVM ulimits
 RUN npm install -g graceful-fs

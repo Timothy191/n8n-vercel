@@ -24,6 +24,11 @@ services:
       - USE_POSTGRES=false
       - N8N_DIAGNOSTICS_ENABLED=false
       - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false
+      # Database connection pooling for Postgres
+      - DB_POSTGRESDB_POOL_MIN=2
+      - DB_POSTGRESDB_POOL_MAX=10
+      - DB_POSTGRESDB_POOL_IDLE_TIMEOUT=30000
+      - DB_POSTGRESDB_POOL_CONNECTION_TIMEOUT=5000
     volumes:
       # Persist n8n workflows and configurations
       - n8n_data:/home/node/.n8n
