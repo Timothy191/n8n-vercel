@@ -37,6 +37,14 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.5'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
     networks:
       - n8n-network
     depends_on:
@@ -62,6 +70,14 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
     networks:
       - n8n-network
     profiles:
@@ -80,6 +96,14 @@ services:
     volumes:
       - postgres_gis_data:/var/lib/postgresql/data
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
     networks:
       - n8n-network
     profiles:
