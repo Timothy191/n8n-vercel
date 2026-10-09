@@ -7,6 +7,9 @@ RUN echo "Building with n8n version: $(n8n --version 2>/dev/null || echo 'unknow
 
 USER root
 
+# Security: Create non-root user for improved container security
+RUN groupadd -r n8nuser && useradd -r -g n8nuser n8nuser
+
 # Install graceful-fs globally to provide resilient file handle queueing under strict microVM ulimits
 RUN npm install -g graceful-fs
 
@@ -23,11 +26,17 @@ COPY patch-fs.js /entrypoint-fs-patch.js
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+# Ensure n8n data directory is writable by non-root user
+RUN mkdir -p /home/node/.n8n && chown n8nuser:n8nuser /home/node/.n8n
+
 # Healthcheck for orchestration - enhanced with fallback
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=5 \
   CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:${N8N_PORT:-5678}/healthz \
     || wget --no-verbose --tries=1 --spider http://127.0.0.1:${N8N_PORT:-5678}/ \
     || exit 1
+
+# Switch to non-root user for security
+USER n8nuser
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["start"]

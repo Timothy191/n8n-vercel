@@ -22,6 +22,12 @@ validate_env() {
   log "$var_name is set"
 }
 
+# Check user context for security
+log "Security check: Running as user $(whoami) with UID $(id -u)"
+if [ "$(whoami)" = "root" ]; then
+  log "Warning: Running as root user - consider using non-root user for security"
+fi
+
 # Increase file descriptor limit if permitted by the host microVM
 log "Setting file descriptor limits..."
 if ! ulimit -n 65536 2>/dev/null; then
