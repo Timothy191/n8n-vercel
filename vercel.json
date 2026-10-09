@@ -2,5 +2,8 @@
   "buildCommand": "echo 'no build needed'",
   "outputDirectory": ".",
   "framework": "container",
-  "installCommand": "echo 'no install needed'"
+  "installCommand": "echo 'no install needed'",
+  "regions": [
+    "iad1"
+  ]
 }
