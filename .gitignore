@@ -1,10 +1,10 @@
 # Vercel
 .vercel
 
-# Environment files
+# Environment files - NEVER commit these
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 .env.production
 
 # Logs and temporary files
@@ -39,3 +39,6 @@ build/
 # Local development files
 .docker-compose.override.yml
 .env.override
+
+# Backup files (created during security cleanup)
+backups/
