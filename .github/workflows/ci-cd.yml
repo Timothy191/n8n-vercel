@@ -293,12 +293,12 @@ jobs:
           name: trivy-scan-results
           path: trivy-results.txt
 
-  # Deployment Job - Only on main branch
+  # Deployment Job - Production on master/main, Preview on palolo
   deploy:
     name: Deploy to Vercel
     needs: [validate, test, docker-compose-test, security-scan]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/Timothy191/palolo'
     
     steps:
       - name: Checkout repository
@@ -314,11 +314,22 @@ jobs:
           echo "📥 Pulling Vercel project..."
           vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
 
-      - name: Deploy to Vercel
-        id: deploy
+      - name: Deploy to Vercel (Production)
+        id: deploy-prod
+        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
         run: |
-          echo "🚀 Deploying to Vercel..."
+          echo "🚀 Deploying to Production..."
           vercel --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Deploy to Vercel (Preview)
+        id: deploy-preview
+        if: github.ref == 'refs/heads/Timothy191/palolo'
+        run: |
+          echo "🚀 Deploying to Preview..."
+          vercel --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
