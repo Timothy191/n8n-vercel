@@ -354,10 +354,34 @@ jobs:
           echo "  Branch: ${{ github.ref_name }}"
           echo "  URL: ${{ steps.deployment-url.outputs.DEPLOYMENT_URL }}"
 
+  # Rollback Job - On production deployment failure
+  rollback:
+    name: Rollback Deployment
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: failure() && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Install Vercel CLI
+        run: |
+          echo "📥 Installing Vercel CLI..."
+          npm install -g vercel@latest
+          
+      - name: Rollback to previous deployment
+        run: |
+          echo "🔙 Rolling back to previous deployment..."
+          vercel rollback --yes --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
   # Cleanup Job - Always runs
   cleanup:
     name: Cleanup Resources
-    needs: [test, docker-compose-test, security-scan, deploy]
+    needs: [test, docker-compose-test, security-scan, deploy, rollback]
     runs-on: ubuntu-latest
     if: always()
     
